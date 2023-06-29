@@ -24,21 +24,21 @@ struct Command {
         
         var output = ""
         let saveOutputInProgress = {
-            DispatchQueue.global(qos: .background).async {
-                let data = pipe.fileHandleForReading.availableData  // 同スレッドで呼び出すとここでハングアップしてしまう
-                if data.count > 0,
-                   let _output = String(data:  data, encoding: .utf8) {
-                    output += _output
-                }
+            // readDataToEndOfFile()ではpingなどのキャンセル時に途中経過が取得できないのでavailableDataを採用
+            let data = pipe.fileHandleForReading.availableData
+            if data.count > 0,
+               let _output = String(data:  data, encoding: .utf8) {
+                output += _output
             }
-            Thread.sleep(forTimeInterval: 0.1)
+            Thread.sleep(forTimeInterval: 1.0)
         }
 
         // Processが完了するまで、Taskがキャンセルされていないかを監視
-        while process.isRunning {  // xcodebuildを呼び出した際にここがfalseにならない
+        while process.isRunning {
             do {
                 try Task.checkCancellation()
             } catch {
+                print(output)
                 process.terminate()
                 completion(.failure(.cancel))
                 return
