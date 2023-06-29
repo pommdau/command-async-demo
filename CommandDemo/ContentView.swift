@@ -22,11 +22,14 @@ struct Command {
         
         var output = ""
         let saveOutputInProgress = {
-            let data = pipe.fileHandleForReading.availableData
-            if data.count > 0,
-               let _output = String(data:  data, encoding: .utf8) {
-                output += _output
-                Thread.sleep(forTimeInterval: 0.5)
+            DispatchQueue.global(qos: .background).async {
+                
+                let data = pipe.fileHandleForReading.availableData
+                if data.count > 0,
+                   let _output = String(data:  data, encoding: .utf8) {
+                    output += _output
+                    Thread.sleep(forTimeInterval: 0.5)
+                }
             }
         }
         
@@ -59,7 +62,7 @@ struct Command {
             completion(.failure(.exitStatusIsInvalid(process.terminationStatus, output)))
             return
         }
-//        print(output)
+        print(output)
         completion(.success(output))
     }
     
