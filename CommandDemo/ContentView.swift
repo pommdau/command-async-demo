@@ -11,8 +11,6 @@ struct Command {
         let pipe = Pipe()
         process.standardOutput = pipe
         process.standardError = pipe
-        process.standardOutput = pipe
-        process.standardError = pipe
                                 
         do {
             try process.run()
@@ -21,12 +19,11 @@ struct Command {
             return
         }
         
-        var output = ""
-        let saveOutputInProgress = {
-            guard let _output = String(data:  pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) else {
-                return
+        var standardOutput = ""
+        let saveStandardOutputInProgress = {
+            if let _standardOutput = String(data:  pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) {
+                standardOutput += _standardOutput
             }
-            output += _output
             Thread.sleep(forTimeInterval: 0.5)
         }
         
@@ -39,27 +36,29 @@ struct Command {
                 completion(.failure(.cancel))
                 return
             }
-            saveOutputInProgress()
+            saveStandardOutputInProgress()
         }
-        saveOutputInProgress()
+        saveStandardOutputInProgress()
         
         if process.terminationStatus != 0 {
-            completion(.failure(.exitStatusIsInvalid(process.terminationStatus, output)))
+            completion(.failure(.exitStatusIsInvalid(process.terminationStatus, standardOutput)))
             return
         }
-        completion(.success(output))
+        completion(.success(standardOutput))
     }
     
     /// async版
     @discardableResult
     static func execute(command: String, currentDirectoryURL: URL? = nil) async throws -> String {
         try await withCheckedThrowingContinuation { continuation in
-            execute(command: command, currentDirectoryURL: currentDirectoryURL) { result in
-                do {
-                    let output = try result.get()
-                    continuation.resume(returning: output)
-                } catch {
-                    continuation.resume(throwing: error)
+            DispatchQueue.global(qos: .background).async {
+                execute(command: command, currentDirectoryURL: currentDirectoryURL) { result in
+                    do {
+                        let output = try result.get()
+                        continuation.resume(returning: output)
+                    } catch {
+                        continuation.resume(throwing: error)
+                    }
                 }
             }
         }
@@ -91,8 +90,8 @@ extension CommandError: LocalizedError {
         switch self {
         case .cancel, .failedInRunning:
             return nil
-        case .exitStatusIsInvalid(_, let output):
-            return output
+        case .exitStatusIsInvalid(_, let standardOutput):
+            return standardOutput
         }
     }
 }
@@ -171,7 +170,8 @@ struct ContentView: View {
                 isProcessing = false
             }
             do {
-                try await Command.execute(command: command)
+                let output = try await Command.execute(command: command)
+                print(output)
             } catch {
                 print(error)
                 return
