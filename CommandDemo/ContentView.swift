@@ -3,6 +3,61 @@
 import Foundation
 
 struct Command {
+    
+    /// completion版
+    static func debugExecute(command: String, currentDirectoryURL: URL? = nil) async throws -> String {
+        let process = Process()
+        process.launchPath = "/bin/zsh"
+        process.arguments = ["-cl", command]
+        process.launchPath = "/bin/zsh"
+        process.currentDirectoryURL = currentDirectoryURL
+        
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = pipe
+        
+        do {
+            try process.run()
+        } catch {
+            throw CommandError.failedInRunning
+        }
+        
+        var output = ""
+        let saveOutputInProgress = {
+            // readDataToEndOfFile()ではpingなどのキャンセル時に途中経過が取得できないのでavailableDataを採用
+            let data = pipe.fileHandleForReading.availableData
+            if data.count > 0,
+               let _output = String(data:  data, encoding: .utf8) {
+                output += _output
+            }
+            try? await Task.sleep(nanoseconds: 0_500_000_000)
+        }
+
+        // Processが完了するまで、Taskがキャンセルされていないかを監視
+        while process.isRunning {
+            do {
+                try Task.checkCancellation()
+            } catch {
+                process.terminate()
+                throw CommandError.cancel(output)
+            }
+            await saveOutputInProgress()
+        }
+        
+        // 残りの標準出力の取得
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        if let _output = String(data: data, encoding: .utf8) {
+            output += _output
+        }
+        
+        try? await Task.sleep(nanoseconds: 0_500_000_000)
+        if process.terminationStatus != 0 {
+            throw CommandError.exitStatusIsInvalid(process.terminationStatus, output)
+        }
+                        
+        return output
+    }
+        
     /// completion版
     static func execute(command: String, currentDirectoryURL: URL? = nil, completion: @escaping (Result<String, CommandError>) -> ()) {
         let process = Process()
@@ -38,9 +93,8 @@ struct Command {
             do {
                 try Task.checkCancellation()
             } catch {
-                print(output)
                 process.terminate()
-                completion(.failure(.cancel))
+                completion(.failure(.cancel(output)))
                 return
             }
             saveOutputInProgress()
@@ -77,7 +131,7 @@ struct Command {
 // MARK: - Command Error
 
 enum CommandError: Error {
-    case cancel  // Taskがキャンセルされた
+    case cancel(String)  // Taskがキャンセルされた
     case failedInRunning  // process.run()でエラーが発生
     case exitStatusIsInvalid(Int32, String) // 終了ステータスが0以外
 }
@@ -179,7 +233,9 @@ struct ContentView: View {
                 isProcessing = false
             }
             do {
-                try await Command.execute(command: command)
+//                try await Command.execute(command: command)
+                let output = try await Command.debugExecute(command: command)
+                print(output)
             } catch {
                 print(error)
                 return
