@@ -6,10 +6,10 @@ struct Command {
     
     /// completion版
     static func debugExecute(command: String, currentDirectoryURL: URL? = nil) async throws -> String {
+        
         let process = Process()
         process.launchPath = "/bin/zsh"
         process.arguments = ["-cl", command]
-        process.launchPath = "/bin/zsh"
         process.currentDirectoryURL = currentDirectoryURL
         
         let pipe = Pipe()
@@ -22,109 +22,36 @@ struct Command {
             throw CommandError.failedInRunning
         }
         
-        var output = ""
-        let saveOutputInProgress = {
-            // readDataToEndOfFile()ではpingなどのキャンセル時に途中経過が取得できないのでavailableDataを採用
-            let data = pipe.fileHandleForReading.availableData
-            if data.count > 0,
-               let _output = String(data:  data, encoding: .utf8) {
-                output += _output
-            }
-            try? await Task.sleep(nanoseconds: 0_500_000_000)
-        }
-
+        var standardOutput = ""
         // Processが完了するまで、Taskがキャンセルされていないかを監視
         while process.isRunning {
             do {
                 try Task.checkCancellation()
             } catch {
                 process.terminate()
-                throw CommandError.cancel(output)
+                throw CommandError.cancel(standardOutput)
             }
-            await saveOutputInProgress()
+            // readDataToEndOfFile()ではpingなどのキャンセル時に途中経過が取得できないのでavailableDataを採用
+            let data = pipe.fileHandleForReading.availableData
+            if data.count > 0,
+               let _standardOutput = String(data:  data, encoding: .utf8) {
+                standardOutput += _standardOutput
+            }
+            try? await Task.sleep(nanoseconds: 0_500_000_000)
         }
         
         // 残りの標準出力の取得
         let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        if let _output = String(data: data, encoding: .utf8) {
-            output += _output
+        if let _standardOutput = String(data: data, encoding: .utf8) {
+            standardOutput += _standardOutput
         }
         
         try? await Task.sleep(nanoseconds: 0_500_000_000)
         if process.terminationStatus != 0 {
-            throw CommandError.exitStatusIsInvalid(process.terminationStatus, output)
+            throw CommandError.exitStatusIsInvalid(process.terminationStatus, standardOutput)
         }
                         
-        return output
-    }
-        
-    /// completion版
-    static func execute(command: String, currentDirectoryURL: URL? = nil, completion: @escaping (Result<String, CommandError>) -> ()) {
-        let process = Process()
-        process.launchPath = "/bin/zsh"
-        process.arguments = ["-cl", command]
-        process.launchPath = "/bin/zsh"
-        process.currentDirectoryURL = currentDirectoryURL
-        
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = pipe
-        
-        do {
-            try process.run()
-        } catch {
-            completion(.failure(.failedInRunning))
-            return
-        }
-        
-        var output = ""
-        let saveOutputInProgress = {
-            // readDataToEndOfFile()ではpingなどのキャンセル時に途中経過が取得できないのでavailableDataを採用
-            let data = pipe.fileHandleForReading.availableData
-            if data.count > 0,
-               let _output = String(data:  data, encoding: .utf8) {
-                output += _output
-            }
-            Thread.sleep(forTimeInterval: 1.0)
-        }
-
-        // Processが完了するまで、Taskがキャンセルされていないかを監視
-        while process.isRunning {
-            do {
-                try Task.checkCancellation()
-            } catch {
-                process.terminate()
-                completion(.failure(.cancel(output)))
-                return
-            }
-            saveOutputInProgress()
-        }
-        saveOutputInProgress()
-        Thread.sleep(forTimeInterval: 0.5) // Taskの終了を待つためのDelay(必要?)
-        
-        if process.terminationStatus != 0 {
-            completion(.failure(.exitStatusIsInvalid(process.terminationStatus, output)))
-            return
-        }
-        print(output)
-        completion(.success(output))
-    }
-    
-    /// async版
-    @discardableResult
-    static func execute(command: String, currentDirectoryURL: URL? = nil) async throws -> String {
-        try await withCheckedThrowingContinuation { continuation in
-            execute(command: command, currentDirectoryURL: currentDirectoryURL) { result in
-                DispatchQueue.global(qos: .background).async {
-                    do {
-                        let output = try result.get()
-                        continuation.resume(returning: output)
-                    } catch {
-                        continuation.resume(throwing: error)
-                    }
-                }
-            }
-        }
+        return standardOutput
     }
 }
 
