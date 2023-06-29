@@ -6,12 +6,13 @@ struct Command {
         let process = Process()
         process.launchPath = "/bin/zsh"
         process.arguments = ["-cl", command]
+        process.launchPath = "/bin/zsh"
         process.currentDirectoryURL = currentDirectoryURL
         
         let pipe = Pipe()
         process.standardOutput = pipe
         process.standardError = pipe
-                                
+        
         do {
             try process.run()
         } catch {
@@ -19,16 +20,26 @@ struct Command {
             return
         }
         
-        var standardOutput = ""
-        let saveStandardOutputInProgress = {
-            if let _standardOutput = String(data:  pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) {
-                standardOutput += _standardOutput
+        var output = ""
+        let saveOutputInProgress = {
+            let data = pipe.fileHandleForReading.availableData
+            if data.count > 0,
+               let _output = String(data:  data, encoding: .utf8) {
+                output += _output
+                Thread.sleep(forTimeInterval: 0.5)
             }
-            Thread.sleep(forTimeInterval: 0.5)
         }
         
+//        let saveOutputInProgress = {
+//                    guard let _output = String(data:  pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) else {
+//                        return
+//                    }
+//                    output += _output
+//                    Thread.sleep(forTimeInterval: 0.5)
+//                }
+        
         // Processが完了するまで、Taskがキャンセルされていないかを監視
-        while process.isRunning {
+        while process.isRunning {  // xcodebuildを呼び出した際にここがfalseにならない
             do {
                 try Task.checkCancellation()
             } catch {
@@ -36,23 +47,28 @@ struct Command {
                 completion(.failure(.cancel))
                 return
             }
-            saveStandardOutputInProgress()
+            saveOutputInProgress()
         }
-        saveStandardOutputInProgress()
+        saveOutputInProgress()
+//        let data = pipe.fileHandleForReading.readDataToEndOfFile()
         
+        Thread.sleep(forTimeInterval: 0.5) // Taskの終了を待つためのDelay(必要?)
+        
+//        let output = String(data: data, encoding: .utf8) ?? ""
         if process.terminationStatus != 0 {
-            completion(.failure(.exitStatusIsInvalid(process.terminationStatus, standardOutput)))
+            completion(.failure(.exitStatusIsInvalid(process.terminationStatus, output)))
             return
         }
-        completion(.success(standardOutput))
+//        print(output)
+        completion(.success(output))
     }
     
     /// async版
     @discardableResult
     static func execute(command: String, currentDirectoryURL: URL? = nil) async throws -> String {
         try await withCheckedThrowingContinuation { continuation in
-            DispatchQueue.global(qos: .background).async {
-                execute(command: command, currentDirectoryURL: currentDirectoryURL) { result in
+            execute(command: command, currentDirectoryURL: currentDirectoryURL) { result in
+                DispatchQueue.global(qos: .background).async {
                     do {
                         let output = try result.get()
                         continuation.resume(returning: output)
@@ -90,8 +106,8 @@ extension CommandError: LocalizedError {
         switch self {
         case .cancel, .failedInRunning:
             return nil
-        case .exitStatusIsInvalid(_, let standardOutput):
-            return standardOutput
+        case .exitStatusIsInvalid(_, let output):
+            return output
         }
     }
 }
@@ -170,8 +186,7 @@ struct ContentView: View {
                 isProcessing = false
             }
             do {
-                let output = try await Command.execute(command: command)
-                print(output)
+                try await Command.execute(command: command)
             } catch {
                 print(error)
                 return
