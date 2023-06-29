@@ -1,3 +1,5 @@
+/// https://tech.blog.surbiton.jp/tag/nstask/
+
 import Foundation
 
 struct Command {
@@ -23,24 +25,15 @@ struct Command {
         var output = ""
         let saveOutputInProgress = {
             DispatchQueue.global(qos: .background).async {
-                
-                let data = pipe.fileHandleForReading.availableData
+                let data = pipe.fileHandleForReading.availableData  // 同スレッドで呼び出すとここでハングアップしてしまう
                 if data.count > 0,
                    let _output = String(data:  data, encoding: .utf8) {
                     output += _output
-                    Thread.sleep(forTimeInterval: 0.5)
                 }
             }
+            Thread.sleep(forTimeInterval: 0.1)
         }
-        
-//        let saveOutputInProgress = {
-//                    guard let _output = String(data:  pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) else {
-//                        return
-//                    }
-//                    output += _output
-//                    Thread.sleep(forTimeInterval: 0.5)
-//                }
-        
+
         // Processが完了するまで、Taskがキャンセルされていないかを監視
         while process.isRunning {  // xcodebuildを呼び出した際にここがfalseにならない
             do {
@@ -53,11 +46,8 @@ struct Command {
             saveOutputInProgress()
         }
         saveOutputInProgress()
-//        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        
         Thread.sleep(forTimeInterval: 0.5) // Taskの終了を待つためのDelay(必要?)
         
-//        let output = String(data: data, encoding: .utf8) ?? ""
         if process.terminationStatus != 0 {
             completion(.failure(.exitStatusIsInvalid(process.terminationStatus, output)))
             return
