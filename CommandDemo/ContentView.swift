@@ -22,9 +22,12 @@ struct ContentView: View {
                 Button("ping") {
                     handleButtonClicked(command: Command.sample.ping)
                 }
-//                Button("xcodebuild") {
-//                    handleXcodeBuildButtonClicked()
-//                }
+                Button("xcodebuild") {
+                    handleXcodeBuildButtonClicked()
+                }
+                Button("ls   ") {
+                    handleButtonClicked(command: Command.sample.ls)
+                }
                 if isProcessing {
                     ProgressView()
                         .scaleEffect(0.5)
@@ -58,6 +61,7 @@ struct ContentView: View {
         }
     }
     
+    // xcodebuildを並列に呼び出す例
     private func handleXcodeBuildButtonClicked() {
         isProcessing = true
         task = Task {
