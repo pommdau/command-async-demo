@@ -2,118 +2,7 @@
 
 import Foundation
 
-struct Command {
-    
-    /// completion版
-    static func debugExecute(command: String, currentDirectoryURL: URL? = nil) async throws -> String {
-        
-        let process = Process()
-        process.launchPath = "/bin/zsh"
-        process.arguments = ["-cl", command]
-        process.currentDirectoryURL = currentDirectoryURL
-        
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = pipe
-        
-        do {
-            try process.run()
-        } catch {
-            throw CommandError.failedInRunning
-        }
-        
-        var standardOutput = ""
-        // Processが完了するまで、Taskがキャンセルされていないかを監視
-        while process.isRunning {
-            do {
-                try Task.checkCancellation()
-            } catch {
-                process.terminate()
-                throw CommandError.cancel(standardOutput)
-            }
-            // readDataToEndOfFile()ではpingなどのキャンセル時に途中経過が取得できないのでavailableDataを採用
-            let data = pipe.fileHandleForReading.availableData
-            if data.count > 0,
-               let _standardOutput = String(data:  data, encoding: .utf8) {
-                standardOutput += _standardOutput
-            }
-            try? await Task.sleep(nanoseconds: 0_500_000_000)
-        }
-        
-        // 残りの標準出力の取得
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        if let _standardOutput = String(data: data, encoding: .utf8) {
-            standardOutput += _standardOutput
-        }
-        
-        try? await Task.sleep(nanoseconds: 0_500_000_000)
-        if process.terminationStatus != 0 {
-            throw CommandError.exitStatusIsInvalid(process.terminationStatus, standardOutput)
-        }
-                        
-        return standardOutput
-    }
-}
 
-// MARK: - Command Error
-
-enum CommandError: Error {
-    case cancel(String)  // Taskがキャンセルされた
-    case failedInRunning  // process.run()でエラーが発生
-    case exitStatusIsInvalid(Int32, String) // 終了ステータスが0以外
-}
-
-extension CommandError: LocalizedError {
-    
-    var title: String {
-        switch self {
-        case .cancel:
-            return "処理をキャンセルしました。"
-        case .failedInRunning:
-            return "コマンドの実行中にエラーが発生しました"
-        case .exitStatusIsInvalid(let status, _):
-            return "コマンドの実行に失敗しました。終了コード: \(status)"
-        }
-    }
-        
-    var errorDescription: String? {
-        switch self {
-        case .cancel, .failedInRunning:
-            return nil
-        case .exitStatusIsInvalid(_, let output):
-            return output
-        }
-    }
-}
-
-// MARK: - Command + sample
-
-extension Command {
-    struct sample {
-        static var echo: String {
-            "echo ~'/Desktop'"
-        }
-        
-        static var xcodebuild: String {
-            """
-            xcodebuild \
-            -scheme "BuildSampleProject" \
-            -project ~/"Downloads/tmp/BuildSampleProject/BuildSampleProject.xcodeproj" \
-            -configuration "Release" \
-            -archivePath ~"/Downloads/tmp/BuildSampleProject/build/BuildSampleProject.xcarchive" \
-            archive
-            """
-        }
-        
-        static var ping: String {
-            "ping google.co.jp"
-        }
-        
-        static var ls: String {
-            "ls -l@ ~/Desktop"
-        }
-    }
-}
 
 // MARK: - View
 
@@ -121,20 +10,62 @@ import SwiftUI
 
 struct ContentView: View {
     
-    @State var task: Task<(), Never>?
-    @State var isProcessing = false
+    @State private var task: Task<(), Never>?
+    @State private var isProcessing = false
     
     var body: some View {
         VStack {
             HStack {
                 Button("echo") {
-                    handleButtonClicked(command: Command.sample.echo)
+//                    handleButtonClicked(command: Command.sample.echo)
+                    
+                    isProcessing = true
+                    task = Task {
+                        defer {
+                            isProcessing = false
+                        }
+                        do {
+                            let output = try await Command.execute(command: "ls -l@", currentDirectoryURL: URL(fileURLWithPath: "/Users/ikeh/Desktop/"))
+                            print(output)
+                        } catch {
+                            print(error.localizedDescription)
+                            return
+                        }
+                    }
+                    
                 }
                 Button("ping") {
                     handleButtonClicked(command: Command.sample.ping)
                 }
                 Button("xcodebuild") {
-                    handleButtonClicked(command: Command.sample.xcodebuild)
+//                    handleButtonClicked(command: Command.sample.xcodebuild)
+                    
+                    isProcessing = true
+                    task = Task {
+                        defer {
+                            isProcessing = false
+                        }
+                        do {
+                            
+                            try await withThrowingTaskGroup(of: String.self) { group in
+                                for program in Program.sampleData {
+                                    group.addTask {
+                                        return try await Command.execute(command: program.commandForArchive)
+                                    }
+                                }
+                                
+                                for try await output in group {
+                                    _ = output
+                                    print(output)
+                                }
+                            }
+                        } catch {
+                            print(error.localizedDescription)
+                            return
+                        }
+                    }
+                    
+                    
                 }
                 if isProcessing {
                     ProgressView()
@@ -161,10 +92,10 @@ struct ContentView: View {
             }
             do {
 //                try await Command.execute(command: command)
-                let output = try await Command.debugExecute(command: command)
+                let output = try await Command.execute(command: command)
                 print(output)
             } catch {
-                print(error)
+                print(error.localizedDescription)
                 return
             }
         }

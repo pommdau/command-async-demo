@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		DA3431732A4EB456007B9362 /* Program.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA3431722A4EB456007B9362 /* Program.swift */; };
+		DA3431752A4EB744007B9362 /* Command.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA3431742A4EB744007B9362 /* Command.swift */; };
 		DAF25D4E2A45934900738303 /* CommandDemoApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAF25D4D2A45934900738303 /* CommandDemoApp.swift */; };
 		DAF25D502A45934900738303 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAF25D4F2A45934900738303 /* ContentView.swift */; };
 		DAF25D522A45934A00738303 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = DAF25D512A45934A00738303 /* Assets.xcassets */; };
@@ -14,6 +16,8 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		DA3431722A4EB456007B9362 /* Program.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Program.swift; sourceTree = "<group>"; };
+		DA3431742A4EB744007B9362 /* Command.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Command.swift; sourceTree = "<group>"; };
 		DAF25D4A2A45934900738303 /* CommandDemo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CommandDemo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		DAF25D4D2A45934900738303 /* CommandDemoApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandDemoApp.swift; sourceTree = "<group>"; };
 		DAF25D4F2A45934900738303 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -54,6 +58,8 @@
 			children = (
 				DAF25D4D2A45934900738303 /* CommandDemoApp.swift */,
 				DAF25D4F2A45934900738303 /* ContentView.swift */,
+				DA3431742A4EB744007B9362 /* Command.swift */,
+				DA3431722A4EB456007B9362 /* Program.swift */,
 				DAF25D512A45934A00738303 /* Assets.xcassets */,
 				DAF25D562A45934A00738303 /* CommandDemo.entitlements */,
 				DAF25D532A45934A00738303 /* Preview Content */,
@@ -141,6 +147,8 @@
 			files = (
 				DAF25D502A45934900738303 /* ContentView.swift in Sources */,
 				DAF25D4E2A45934900738303 /* CommandDemoApp.swift in Sources */,
+				DA3431732A4EB456007B9362 /* Program.swift in Sources */,
+				DA3431752A4EB744007B9362 /* Command.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
