@@ -19,8 +19,8 @@ extension CommandError: LocalizedError {
     // error.localizedDescriptionで表示される内容
     var errorDescription: String? {
         switch self {
-        case .cancel(_):
-            return "処理をキャンセルしました。"
+        case .cancel(let output):
+            return "処理をキャンセルしました。\n標準出力: \(output)"
         case .failedInRunning:
             return "コマンドの実行時にエラーが発生しました"
         case .exitStatusIsInvalid(let status, let output):

@@ -17,56 +17,14 @@ struct ContentView: View {
         VStack {
             HStack {
                 Button("echo") {
-//                    handleButtonClicked(command: Command.sample.echo)
-                    
-                    isProcessing = true
-                    task = Task {
-                        defer {
-                            isProcessing = false
-                        }
-                        do {
-                            let output = try await Command.execute(command: "ls -l@", currentDirectoryURL: URL(fileURLWithPath: "/Users/ikeh/Desktop/"))
-                            print(output)
-                        } catch {
-                            print(error.localizedDescription)
-                            return
-                        }
-                    }
-                    
+                    handleButtonClicked(command: Command.sample.echo)
                 }
                 Button("ping") {
                     handleButtonClicked(command: Command.sample.ping)
                 }
-                Button("xcodebuild") {
-//                    handleButtonClicked(command: Command.sample.xcodebuild)
-                    
-                    isProcessing = true
-                    task = Task {
-                        defer {
-                            isProcessing = false
-                        }
-                        do {
-                            
-                            try await withThrowingTaskGroup(of: String.self) { group in
-                                for program in Program.sampleData {
-                                    group.addTask {
-                                        return try await Command.execute(command: program.commandForArchive)
-                                    }
-                                }
-                                
-                                for try await output in group {
-                                    _ = output
-                                    print(output)
-                                }
-                            }
-                        } catch {
-                            print(error.localizedDescription)
-                            return
-                        }
-                    }
-                    
-                    
-                }
+//                Button("xcodebuild") {
+//                    handleXcodeBuildButtonClicked()
+//                }
                 if isProcessing {
                     ProgressView()
                         .scaleEffect(0.5)
@@ -91,9 +49,33 @@ struct ContentView: View {
                 isProcessing = false
             }
             do {
-//                try await Command.execute(command: command)
                 let output = try await Command.execute(command: command)
                 print(output)
+            } catch {
+                print(error.localizedDescription)
+                return
+            }
+        }
+    }
+    
+    private func handleXcodeBuildButtonClicked() {
+        isProcessing = true
+        task = Task {
+            defer {
+                isProcessing = false
+            }
+            do {
+                try await withThrowingTaskGroup(of: String.self) { group in
+                    for program in Program.sampleData {
+                        group.addTask {
+                            return try await Command.execute(command: program.commandForArchive)
+                        }
+                    }
+                    for try await output in group {
+                        _ = output
+                        print(output)
+                    }
+                }
             } catch {
                 print(error.localizedDescription)
                 return

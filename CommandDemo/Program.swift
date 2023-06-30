@@ -13,8 +13,6 @@ struct Program {
     var configuration = "Release"
 }
 
-// MARK: - Build/Archive Directory
-
 extension Program {
     // ビルド結果の出力先ディレクトリ
     // 変更方法ある？
